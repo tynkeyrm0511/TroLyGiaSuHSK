@@ -40,7 +40,11 @@ function initChat() {
 // Add sparkle effect on page load
 function createSparkles() {
     const container = document.querySelector('.container');
-    for (let i = 0; i < 20; i++) {
+    // Reduce sparkles on mobile for better performance
+    const isMobile = window.innerWidth <= 768;
+    const sparkleCount = isMobile ? 10 : 20;
+    
+    for (let i = 0; i < sparkleCount; i++) {
         const sparkle = document.createElement('div');
         sparkle.className = 'sparkle';
         sparkle.style.left = Math.random() * 100 + '%';
@@ -50,10 +54,31 @@ function createSparkles() {
     }
 }
 
+// Prevent zoom on double tap for iOS
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, false);
+
+// Fix 100vh on mobile browsers
+function setVH() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
 // Initialize sparkles when page loads
 window.addEventListener('load', () => {
     createSparkles();
+    setVH();
     
     // Add smooth scroll behavior
     document.documentElement.style.scrollBehavior = 'smooth';
 });
+
+// Update VH on resize/orientation change
+window.addEventListener('resize', setVH);
+window.addEventListener('orientationchange', setVH);
