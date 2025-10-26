@@ -111,9 +111,49 @@ async function sendMessage(message) {
     showTypingIndicator();
     
     try {
-        // Determine API endpoint
+        // Detect environment
+        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const isNetlify = window.location.hostname.includes('netlify.app');
-        const apiEndpoint = isNetlify ? '/.netlify/functions/chat' : '/.netlify/functions/chat';
+        
+        let apiEndpoint;
+        let useMockResponse = false;
+        
+        if (isDev) {
+            // Check if Netlify Dev is running (port 8888)
+            if (window.location.port === '8888') {
+                apiEndpoint = '/.netlify/functions/chat';
+            } else {
+                // Regular local dev server - use mock response
+                console.warn('⚠️ Running without Netlify Dev. Using mock response.');
+                console.info('💡 To test API locally, run: npm run dev');
+                useMockResponse = true;
+            }
+        } else if (isNetlify) {
+            apiEndpoint = '/.netlify/functions/chat';
+        } else {
+            apiEndpoint = '/.netlify/functions/chat';
+        }
+        
+        // Mock response for local development without Netlify Dev
+        if (useMockResponse) {
+            removeTypingIndicator();
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+            
+            const mockResponses = [
+                'Xin chào! Tôi là trợ lý AI. Hiện tại bạn đang chạy ở chế độ demo local.\n\nĐể test đầy đủ tính năng, vui lòng:\n1. Cài đặt: npm install\n2. Chạy: npm run dev\n3. Mở: http://localhost:8888',
+                'Đây là phản hồi demo. Để sử dụng AI thật, hãy deploy lên Netlify hoặc chạy "npm run dev" để test local.',
+                'Bạn đang ở chế độ offline. Vui lòng chạy "npm run dev" để kết nối với Coze API.'
+            ];
+            
+            const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+            addMessage(randomResponse, 'bot');
+            statusElement.textContent = 'Chế độ Demo (Offline)';
+            
+            isProcessing = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+            return;
+        }
         
         console.log('Calling API:', apiEndpoint);
         
@@ -136,7 +176,7 @@ async function sendMessage(message) {
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
             console.error('Non-JSON response:', text);
-            throw new Error('Server trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.');
+            throw new Error('Server trả về dữ liệu không hợp lệ. Vui lòng deploy lên Netlify hoặc chạy "npm run dev".');
         }
         
         const data = await response.json();
@@ -179,18 +219,20 @@ async function sendMessage(message) {
         
         // User-friendly error messages
         if (error.message.includes('Failed to fetch')) {
-            errorMessage = 'Không thể kết nối với server. Vui lòng kiểm tra kết nối internet.';
+            errorMessage = 'Không thể kết nối với server. Vui lòng kiểm tra kết nối internet hoặc deploy lên Netlify.';
         } else if (error.message.includes('NetworkError')) {
             errorMessage = 'Lỗi mạng. Vui lòng thử lại.';
-        } else if (error.message.includes('JSON')) {
-            errorMessage = 'Lỗi xử lý dữ liệu từ server. Backend chưa được cấu hình đúng.';
+        } else if (error.message.includes('405')) {
+            errorMessage = 'API endpoint chưa được cấu hình. Vui lòng chạy "npm run dev" hoặc deploy lên Netlify.';
         }
         
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
         errorDiv.innerHTML = `
             <strong>❌ Lỗi:</strong> ${errorMessage}<br>
-            <small>Tip: Đảm bảo đã deploy lên Netlify và cấu hình Environment Variables</small>
+            <small><strong>Hướng dẫn:</strong></small><br>
+            <small>• Local: Chạy <code>npm install</code> và <code>npm run dev</code></small><br>
+            <small>• Production: Deploy lên Netlify và cấu hình Environment Variables</small>
         `;
         chatMessages.appendChild(errorDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
