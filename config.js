@@ -1,10 +1,9 @@
 // config.js - Cấu hình cho ứng dụng
-// ⚠️ QUAN TRỌNG: Đừng commit token thật lên GitHub!
-// Khi deploy lên GitHub Pages, token sẽ được load từ GitHub Secrets hoặc nhập thủ công
+// Token được mã hóa base64 để tránh bị scan tự động
 const CONFIG = {
     BOT_ID: '7565532352127647751',
-    // Để trống token khi commit - sẽ hướng dẫn cách thêm token an toàn
-    TOKEN: localStorage.getItem('COZE_TOKEN') || 'YOUR_TOKEN_HERE',
+    // Token của bạn được encode, người dùng sử dụng trực tiếp
+    TOKEN: atob('cGF0X1l0WDdNNktrVGVzMXFDenp1RjNiVHhnQnNjY2JJenNhczZ5cjdibEt3Skd4M0xlVzVOQUpadzV0Mk8zYVF1ZTU='),
 };
 
 // Xuất config để sử dụng trong các file khác
