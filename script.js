@@ -37,12 +37,15 @@ function initChat() {
     }
 }
 
-// Add sparkle effect on page load
+// Add sparkle effect on page load - Desktop only
 function createSparkles() {
+    // Only create sparkles on desktop
+    if (window.innerWidth <= 768) {
+        return;
+    }
+    
     const container = document.querySelector('.container');
-    // Reduce sparkles on mobile for better performance
-    const isMobile = window.innerWidth <= 768;
-    const sparkleCount = isMobile ? 10 : 20;
+    const sparkleCount = 20;
     
     for (let i = 0; i < sparkleCount; i++) {
         const sparkle = document.createElement('div');
