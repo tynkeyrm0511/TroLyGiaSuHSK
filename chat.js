@@ -111,10 +111,11 @@ async function sendMessage(message) {
     showTypingIndicator();
     
     try {
-        // Determine API endpoint (Netlify function or local)
-        const apiEndpoint = window.location.hostname === 'localhost' 
-            ? '/.netlify/functions/chat' 
-            : '/api/chat';
+        // Determine API endpoint
+        const isNetlify = window.location.hostname.includes('netlify.app');
+        const apiEndpoint = isNetlify ? '/.netlify/functions/chat' : '/.netlify/functions/chat';
+        
+        console.log('Calling API:', apiEndpoint);
         
         const response = await fetch(apiEndpoint, {
             method: 'POST',
@@ -128,12 +129,23 @@ async function sendMessage(message) {
             })
         });
         
+        console.log('Response status:', response.status);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error('Server trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.');
+        }
+        
         const data = await response.json();
+        console.log('Response data:', data);
         
         removeTypingIndicator();
         
         if (!response.ok) {
-            throw new Error(data.error || 'Lỗi khi gửi tin nhắn');
+            throw new Error(data.error || `Lỗi ${response.status}: ${data.message || 'Không thể kết nối với AI'}`);
         }
         
         // Update conversation ID
@@ -150,6 +162,10 @@ async function sendMessage(message) {
             if (assistantMessages.length > 0) {
                 botReply = assistantMessages[assistantMessages.length - 1].content;
             }
+        } else if (data.content) {
+            botReply = data.content;
+        } else if (data.reply) {
+            botReply = data.reply;
         }
         
         addMessage(botReply, 'bot');
@@ -157,12 +173,27 @@ async function sendMessage(message) {
         
     } catch (error) {
         removeTypingIndicator();
-        console.error('Error:', error);
+        console.error('Error details:', error);
+        
+        let errorMessage = error.message;
+        
+        // User-friendly error messages
+        if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Không thể kết nối với server. Vui lòng kiểm tra kết nối internet.';
+        } else if (error.message.includes('NetworkError')) {
+            errorMessage = 'Lỗi mạng. Vui lòng thử lại.';
+        } else if (error.message.includes('JSON')) {
+            errorMessage = 'Lỗi xử lý dữ liệu từ server. Backend chưa được cấu hình đúng.';
+        }
         
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
-        errorDiv.textContent = `❌ Lỗi: ${error.message}`;
+        errorDiv.innerHTML = `
+            <strong>❌ Lỗi:</strong> ${errorMessage}<br>
+            <small>Tip: Đảm bảo đã deploy lên Netlify và cấu hình Environment Variables</small>
+        `;
         chatMessages.appendChild(errorDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         
         statusElement.textContent = 'Có lỗi xảy ra';
         

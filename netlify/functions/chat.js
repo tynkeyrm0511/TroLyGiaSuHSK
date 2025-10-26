@@ -19,7 +19,7 @@ exports.handler = async function(event, context) {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: 'Method not allowed', message: 'Only POST requests are allowed' })
     };
   }
 
@@ -27,27 +27,59 @@ exports.handler = async function(event, context) {
   const COZE_TOKEN = process.env.COZE_TOKEN;
   const BOT_ID = process.env.BOT_ID || '7565532352127647751';
 
+  console.log('Environment check:', {
+    hasToken: !!COZE_TOKEN,
+    botId: BOT_ID,
+    tokenPrefix: COZE_TOKEN ? COZE_TOKEN.substring(0, 10) + '...' : 'missing'
+  });
+
   if (!COZE_TOKEN) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Server configuration error' })
+      body: JSON.stringify({ 
+        error: 'Server configuration error',
+        message: 'COZE_TOKEN environment variable is not set. Please configure it in Netlify dashboard.'
+      })
     };
   }
 
   try {
-    const { message, conversation_id, user_id } = JSON.parse(event.body);
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body);
+    } catch (parseError) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Invalid JSON',
+          message: 'Request body must be valid JSON'
+        })
+      };
+    }
+
+    const { message, conversation_id, user_id } = requestBody;
 
     if (!message) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Message is required' })
+        body: JSON.stringify({ 
+          error: 'Message is required',
+          message: 'Please provide a message in the request body'
+        })
       };
     }
 
+    console.log('Calling Coze API with:', { 
+      bot_id: BOT_ID, 
+      user_id: user_id || `user_${Date.now()}`,
+      messageLength: message.length
+    });
+
     // Call Coze Chat API
-    const response = await fetch('https://api.coze.com/v1/conversation/create', {
+    const response = await fetch('https://api.coze.com/v3/chat', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${COZE_TOKEN}`,
@@ -56,16 +88,34 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({
         bot_id: BOT_ID,
         user_id: user_id || `user_${Date.now()}`,
+        stream: false,
+        auto_save_history: true,
         additional_messages: [{
           role: 'user',
           content: message,
           content_type: 'text'
-        }],
-        auto_save_history: true
+        }]
       })
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('Coze API response status:', response.status);
+    console.log('Coze API response:', responseText.substring(0, 200));
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error('Failed to parse Coze response:', responseText);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Invalid response from AI service',
+          message: 'The AI service returned an invalid response. Please try again.'
+        })
+      };
+    }
 
     if (!response.ok) {
       console.error('Coze API Error:', data);
@@ -74,7 +124,8 @@ exports.handler = async function(event, context) {
         headers,
         body: JSON.stringify({ 
           error: 'Failed to get response from AI',
-          details: data 
+          message: data.msg || data.message || 'Unknown error from AI service',
+          code: data.code
         })
       };
     }
@@ -92,7 +143,8 @@ exports.handler = async function(event, context) {
       headers,
       body: JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
