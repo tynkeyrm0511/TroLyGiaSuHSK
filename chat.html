@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#667eea">
+    <title>Chat - Trợ Lý Gia Sư HSK</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+    <link rel="stylesheet" href="chat-styles.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <button class="back-button" onclick="window.location.href='index.html'">
+                ← Quay lại
+            </button>
+            <div class="chat-title">
+                <h2>🎓 Trợ Lý Gia Sư HSK</h2>
+                <p class="status" id="status">Sẵn sàng hỗ trợ</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <div class="bot-avatar">🤖</div>
+                <div class="message-bubble bot-message">
+                    <p>Xin chào! 👋 Tôi là trợ lý AI giúp bạn học tiếng Trung và ôn thi HSK.</p>
+                    <p>Bạn có thể hỏi tôi về:</p>
+                    <ul>
+                        <li>📚 Từ vựng HSK các cấp</li>
+                        <li>✍️ Ngữ pháp và cấu trúc câu</li>
+                        <li>🗣️ Luyện tập hội thoại</li>
+                        <li>📝 Mẹo ôn thi HSK</li>
+                    </ul>
+                    <p>Hãy bắt đầu bằng cách gửi tin nhắn cho tôi! 😊</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form id="chatForm" class="chat-form">
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Nhập tin nhắn của bạn..."
+                    rows="1"
+                    maxlength="2000"
+                ></textarea>
+                <button type="submit" id="sendButton" class="send-button">
+                    <span class="send-icon">📤</span>
+                </button>
+            </form>
+            <div class="input-footer">
+                <span class="char-count" id="charCount">0/2000</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="chat.js"></script>
+</body>
+</html>
