@@ -78,7 +78,7 @@ exports.handler = async function(event, context) {
       messageLength: message.length
     });
 
-    // Call Coze Chat API
+    // Call Coze Chat API v3
     const response = await fetch('https://api.coze.com/v3/chat', {
       method: 'POST',
       headers: {
@@ -100,7 +100,7 @@ exports.handler = async function(event, context) {
 
     const responseText = await response.text();
     console.log('Coze API response status:', response.status);
-    console.log('Coze API response:', responseText.substring(0, 200));
+    console.log('Coze API response:', responseText.substring(0, 500));
 
     let data;
     try {
@@ -126,6 +126,70 @@ exports.handler = async function(event, context) {
           error: 'Failed to get response from AI',
           message: data.msg || data.message || 'Unknown error from AI service',
           code: data.code
+        })
+      };
+    }
+
+    // If status is in_progress, we need to poll for the result
+    if (data.data && data.data.status === 'in_progress') {
+      const chatId = data.data.id;
+      const conversationId = data.data.conversation_id;
+      
+      console.log('Chat in progress, polling for result...', { chatId, conversationId });
+      
+      // Poll for result (max 30 seconds)
+      let attempts = 0;
+      const maxAttempts = 30;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        
+        const retrieveResponse = await fetch(`https://api.coze.com/v3/chat/retrieve?conversation_id=${conversationId}&chat_id=${chatId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${COZE_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const retrieveData = await retrieveResponse.json();
+        console.log(`Poll attempt ${attempts + 1}:`, retrieveData.data?.status);
+        
+        if (retrieveData.data && (retrieveData.data.status === 'completed' || retrieveData.data.status === 'failed')) {
+          // Get messages
+          const messagesResponse = await fetch(`https://api.coze.com/v3/chat/message/list?conversation_id=${conversationId}&chat_id=${chatId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${COZE_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const messagesData = await messagesResponse.json();
+          console.log('Messages retrieved:', messagesData);
+          
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              conversation_id: conversationId,
+              chat_id: chatId,
+              messages: messagesData.data || [],
+              status: retrieveData.data.status
+            })
+          };
+        }
+        
+        attempts++;
+      }
+      
+      // Timeout
+      return {
+        statusCode: 408,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Request timeout',
+          message: 'AI took too long to respond. Please try again.'
         })
       };
     }

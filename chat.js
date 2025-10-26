@@ -193,15 +193,32 @@ async function sendMessage(message) {
             conversationId = data.conversation_id;
         }
         
-        // Extract bot response
+        // Extract bot response from Coze API v3 format
         let botReply = 'Xin lỗi, tôi không thể trả lời lúc này.';
         
-        if (data.messages && data.messages.length > 0) {
-            // Find the last assistant message
-            const assistantMessages = data.messages.filter(m => m.role === 'assistant');
+        console.log('Full API response:', JSON.stringify(data, null, 2));
+        
+        // Check if we have messages array (from polling result)
+        if (data.messages && Array.isArray(data.messages)) {
+            // Filter for assistant answers
+            const assistantMessages = data.messages.filter(m => 
+                m.role === 'assistant' && m.type === 'answer' && m.content
+            );
+            
             if (assistantMessages.length > 0) {
+                // Get the last assistant message
                 botReply = assistantMessages[assistantMessages.length - 1].content;
+            } else {
+                // If no answer type, get any assistant message
+                const anyAssistant = data.messages.filter(m => m.role === 'assistant' && m.content);
+                if (anyAssistant.length > 0) {
+                    botReply = anyAssistant[anyAssistant.length - 1].content;
+                }
             }
+        }
+        // Legacy fallbacks
+        else if (data.data && data.data.content) {
+            botReply = data.data.content;
         } else if (data.content) {
             botReply = data.content;
         } else if (data.reply) {
